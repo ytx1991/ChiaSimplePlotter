@@ -44,22 +44,19 @@ def main():
                 logger.info("Doesn't has enough memory or cache space, wait for next scan ...")
 
             # Update in transfer plots
-
+            update_in_transfer()
             # Check if there is any plot need to move
             for file in os.listdir(PLOT_CACHE_PATH):
-                if file.endswith('.plot') and file not in plot_in_transfer and len(plot_in_transfer) < MAX_COPY_THREAD:
+                if file.endswith('.plot') and f"{PLOT_CACHE_PATH}/{file}" not in plot_in_transfer and len(plot_in_transfer) < MAX_COPY_THREAD:
                     # Check which farm has space
                     file_size = os.path.getsize(f"{PLOT_CACHE_PATH}/{file}")
                     for farm in FARMS:
                         farm_free = psutil.disk_usage(farm)[2]
                         if farm not in farm_in_transfer and farm_free > file_size and len(farm_in_transfer) < MAX_COPY_THREAD:
-                            plot_in_transfer.add(file)
-                            farm_in_transfer.add(farm)
                             logger.info(f"Start moving plot {file} to {farm} ...")
                             subprocess.check_output(["cp", f"{PLOT_CACHE_PATH}/{file}", farm, "&"])
                         else:
                             continue
-
         except Exception as e:
             logger.exception("Error")
         finally:
@@ -68,11 +65,17 @@ def main():
 
 def update_in_transfer():
     processes = psutil.process_iter()
+    plot_in_transfer.clear()
+    farm_in_transfer.clear()
     for process in processes:
         try:
-            print(process.cmdline())
+            command = process.cmdline()
+            if len(command) >= 3 and command[0] == "cp" and command[1].find(PLOT_CACHE_PATH) > 0 and command[1].find(".plot") > 0:
+                plot_in_transfer.add(command[1])
+                farm_in_transfer.add(command[2])
         except Exception:
             pass
+    logger.info(f"Detected {len(plot_in_transfer)} plots in transfer.")
 
 
 if __name__ == "__main__":
@@ -88,4 +91,4 @@ if __name__ == "__main__":
     handler.setFormatter(formatter)
     logger.addHandler(handler)
     update_in_transfer()
-    #main()
+    main()
