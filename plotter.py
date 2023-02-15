@@ -38,8 +38,7 @@ def main():
                 logger.info("Has enough memory and cache space, trigger a new plotting ...")
                 # Change this based on your OS and plotter
                 subprocess.Popen(
-                    [PLOTTER_PATH, "-f", FARMER_KEY, "-c", POOL_CONTRACT, "--compress", str(COMPRESSION_LEVEL), "cudaplot",
-                     PLOT_CACHE_PATH, ">", "tmp.txt", "&&", "rm", "tmp.txt"], shell=True)
+                    [f"{PLOTTER_PATH} -f {FARMER_KEY} -c {POOL_CONTRACT} --compress {COMPRESSION_LEVEL} cudaplot {PLOT_CACHE_PATH} > tmp.txt && rm tmp.txt"], shell=True)
             else:
                 logger.info("Doesn't has enough memory or cache space, wait for next scan ...")
 
@@ -53,8 +52,12 @@ def main():
                     for farm in FARMS:
                         farm_free = psutil.disk_usage(farm)[2]
                         if farm not in farm_in_transfer and farm_free > file_size and len(farm_in_transfer) < MAX_COPY_THREAD:
+                            plot_in_transfer.add(f"{PLOT_CACHE_PATH}/{file}")
+                            farm_in_transfer.add(farm)
                             logger.info(f"Start moving plot {file} to {farm} ...")
-                            subprocess.Popen(["cp", f"{PLOT_CACHE_PATH}/{file}", farm, "&&", "mv", f"{PLOT_CACHE_PATH}/{file}", f"{PLOT_CACHE_PATH}/{file}.delete", "&&", "rm", f"{PLOT_CACHE_PATH}/{file}.delete"], shell=True)
+                            # Modify this command if you want to copy remotely
+                            subprocess.Popen([f"cp {PLOT_CACHE_PATH}/{file} {farm} && mv {PLOT_CACHE_PATH}/{file} {PLOT_CACHE_PATH}/{file}.delete && rm {PLOT_CACHE_PATH}/{file}.delete"], shell=True)
+                            break
                         else:
                             continue
         except Exception as e:
@@ -70,7 +73,7 @@ def update_in_transfer():
     for process in processes:
         try:
             command = process.cmdline()
-            if len(command) >= 3 and command[0] == "cp" and command[1].find(PLOT_CACHE_PATH) > 0 and command[1].find(".plot") > 0:
+            if len(command) >= 3 and command[0] == "cp" and command[1].find(PLOT_CACHE_PATH) >= 0 and command[1].find(".plot") >= 0:
                 plot_in_transfer.add(command[1])
                 farm_in_transfer.add(command[2])
         except Exception:
