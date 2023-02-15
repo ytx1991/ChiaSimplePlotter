@@ -28,7 +28,7 @@ COMPRESSION_LEVEL = 0
 MAX_COPY_THREAD = 5
 # If you want to replace old plots when the disk is full
 REPLOT_MODE = False
-# Destination of HDD
+# Destination of HDDs
 FARMS = ["/mnt/farm1", "/mnt/farm2", "/mnt/farm3", "/mnt/farm4", "/mnt/farm5", "/mnt/farm6", "/mnt/farm7", "/mnt/farm8", "/mnt/farm9",
          "/mnt/farm10", "/mnt/farm11", "/mnt/farm12", "/mnt/farm13", "/mnt/farm14", "/mnt/farm15", "/mnt/farm16", "/mnt/farm17", "/mnt/farm18", "/mnt/farm19",
          "/mnt/farm20", "/mnt/farm21", "/mnt/farm22", "/mnt/farm23", "/mnt/farm24", "/mnt/farm25", "/mnt/farm26", "/mnt/farm27", "/mnt/farm28", "/mnt/farm29",
@@ -39,6 +39,7 @@ plot_in_pending = set([])
 farm_in_transfer = set([])
 last_plot_time = 0
 spawn_plotter = True
+
 
 def main():
     global last_plot_cycle
@@ -79,6 +80,7 @@ def main():
             logger.exception("Error")
         finally:
             time.sleep(SCAN_SECOND)
+
 
 def update_in_transfer():
     global last_plot_time
