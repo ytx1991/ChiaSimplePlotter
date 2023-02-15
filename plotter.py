@@ -11,7 +11,7 @@ global logger
 SCAN_SECOND = 5
 FARMER_KEY = "b64bf1a9dd9378da07fe5c656a9f609838f14d13173805cb25940cce609866d367d0f51b08e5b3fcc7795acdd620a581"
 POOL_CONTRACT = "xch1mw5mhk3jukd6ds0cttzptqqzkqjujaepwhn94h4yukdu33jrrlmqkvap63"
-PLOTTER_PATH = "private-bladebit/build-release/bladebit_cuda"
+PLOTTER_PATH = "./bladebit_cuda"
 PLOT_CACHE_PATH = r"/mnt/plot"
 REQUIRED_MEM_PERCENT = 50
 REQUIRED_CACHE_GB = 105
@@ -32,14 +32,14 @@ def main():
         try:
             # Check if need to trigger a new plotting
             mem_usage = psutil.virtual_memory()[2]
-            cache_free = psutil.disk_usage(PLOTTER_PATH)[2]/1024/1024/1024
+            cache_free = psutil.disk_usage(PLOT_CACHE_PATH)[2]/1024/1024/1024
             logger.info(f"Start scanning, current memory usage: {mem_usage}%, cache free GB:{cache_free}")
-            if mem_usage <= REQUIRED_MEM_PERCENT and cache_free >= REQUIRED_CACHE_GB:
+            if mem_usage <= REQUIRED_MEM_PERCENT and cache_free >= REQUIRED_CACHE_GB and not os.path.exists("tmp.txt"):
                 logger.info("Has enough memory and cache space, trigger a new plotting ...")
                 # Change this based on your OS and plotter
-                subprocess.check_output(
-                    [PLOTTER_PATH, "-f", FARMER_KEY, "-c", POOL_CONTRACT, "--compress", COMPRESSION_LEVEL, "cudaplot",
-                     PLOT_CACHE_PATH, ">", "tmp.txt", "&"])
+                subprocess.Popen(
+                    [PLOTTER_PATH, "-f", FARMER_KEY, "-c", POOL_CONTRACT, "--compress", str(COMPRESSION_LEVEL), "cudaplot",
+                     PLOT_CACHE_PATH, ">", "tmp.txt", "&&", "rm", "tmp.txt"], shell=True)
             else:
                 logger.info("Doesn't has enough memory or cache space, wait for next scan ...")
 
@@ -54,7 +54,7 @@ def main():
                         farm_free = psutil.disk_usage(farm)[2]
                         if farm not in farm_in_transfer and farm_free > file_size and len(farm_in_transfer) < MAX_COPY_THREAD:
                             logger.info(f"Start moving plot {file} to {farm} ...")
-                            subprocess.check_output(["cp", f"{PLOT_CACHE_PATH}/{file}", farm, "&"])
+                            subprocess.Popen(["cp", f"{PLOT_CACHE_PATH}/{file}", farm, "&&", "mv", f"{PLOT_CACHE_PATH}/{file}", f"{PLOT_CACHE_PATH}/{file}.delete", "&&", "rm", f"{PLOT_CACHE_PATH}/{file}.delete"], shell=True)
                         else:
                             continue
         except Exception as e:
