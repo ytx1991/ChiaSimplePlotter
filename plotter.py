@@ -15,9 +15,10 @@ FARMER_KEY = "b64bf1a9dd9378da07fe5c656a9f609838f14d13173805cb25940cce609866d367
 # Your Pool Contract
 POOL_CONTRACT = "xch1mw5mhk3jukd6ds0cttzptqqzkqjujaepwhn94h4yukdu33jrrlmqkvap63"
 # Path of your plotter binary
+# Valid Bladebit path needs to contain "bladebit"
 PLOTTER_PATH = "./bladebit_cuda"
-# Your SSD cache for plots
-PLOT_CACHE_PATH = r"/mnt/plot"
+# Your SSD cache for plots, for Gigahorse, it has to end with /
+PLOT_CACHE_PATH = "/mnt/plot"
 # No new plotting when memory utilization is higher than this number
 REQUIRED_MEM_PERCENT = 50
 # No new plotting when cache SSD free space is lower than this number
@@ -35,11 +36,16 @@ FARMS = ["/mnt/farm1", "/mnt/farm2", "/mnt/farm3", "/mnt/farm4", "/mnt/farm5", "
          "/mnt/farm20", "/mnt/farm21", "/mnt/farm22", "/mnt/farm23", "/mnt/farm24", "/mnt/farm25", "/mnt/farm26", "/mnt/farm27", "/mnt/farm28", "/mnt/farm29",
          "/mnt/farm30", "/mnt/farm31", "/mnt/farm32", "/mnt/farm33", "/mnt/farm34", "/mnt/farm35", "/mnt/farm36", "/mnt/farm37", "/mnt/farm38", "/mnt/farm39",
          "/mnt/farm40", "/mnt/farm41", "/mnt/farm42"]
+
+BLADEBIT_COMMAND = f"{PLOTTER_PATH} -f {FARMER_KEY} -n 0 -t 20 -c {POOL_CONTRACT} --compress {COMPRESSION_LEVEL} cudaplot {PLOT_CACHE_PATH} "
+GIGAHORSE_COMMAND = f"{PLOTTER_PATH} -f {FARMER_KEY} -n -1 -c {POOL_CONTRACT} -C {COMPRESSION_LEVEL} -t {PLOT_CACHE_PATH} "
+
 plot_in_transfer = set([])
 plot_in_pending = set([])
 farm_in_transfer = set([])
 last_plot_time = 0
 spawn_plotter = True
+
 last_plot_cycle = COOLDOWN_CYCLE
 
 def main():
@@ -54,7 +60,7 @@ def main():
                 logger.info("Has enough memory and cache space, spawn the plotter ...")
                 # Change this based on your OS and plotter
                 subprocess.Popen(
-                    [f"{PLOTTER_PATH} -f {FARMER_KEY} -n 0 -t 20 -c {POOL_CONTRACT} --compress {COMPRESSION_LEVEL} cudaplot {PLOT_CACHE_PATH} > tmp.txt && rm tmp.txt"],
+                    [f"{BLADEBIT_COMMAND if PLOTTER_PATH.find('bladebit')>=0 else GIGAHORSE_COMMAND} > tmp.txt && rm tmp.txt"],
                     shell=True)
                 last_plot_cycle = 0
 
