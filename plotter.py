@@ -26,6 +26,7 @@ REQUIRED_CACHE_GB = 105
 COMPRESSION_LEVEL = 0
 # Concurrent copy how many plots
 MAX_COPY_THREAD = 5
+COOLDOWN_CYCLE = 3
 # If you want to replace old plots when the disk is full
 REPLOT_MODE = False
 # Destination of HDDs
@@ -39,7 +40,7 @@ plot_in_pending = set([])
 farm_in_transfer = set([])
 last_plot_time = 0
 spawn_plotter = True
-
+last_plot_cycle = COOLDOWN_CYCLE
 
 def main():
     global last_plot_cycle
@@ -48,8 +49,8 @@ def main():
             # Check if need to trigger a new plotting
             mem_usage = psutil.virtual_memory()[2]
             cache_free = psutil.disk_usage(PLOT_CACHE_PATH)[2]/1024/1024/1024
-            logger.info(f"Start scanning, current memory usage: {mem_usage}%, cache free GB:{cache_free}, last plot created at {last_plot_time}.")
-            if mem_usage <= REQUIRED_MEM_PERCENT and cache_free >= REQUIRED_CACHE_GB and spawn_plotter:
+            logger.info(f"Start scanning, current memory usage: {mem_usage}%, cache free GB:{cache_free}, last plotting triggered at {last_plot_cycle} cycle ago.")
+            if mem_usage <= REQUIRED_MEM_PERCENT and cache_free >= REQUIRED_CACHE_GB and spawn_plotter and last_plot_cycle > COOLDOWN_CYCLE:
                 logger.info("Has enough memory and cache space, spawn the plotter ...")
                 # Change this based on your OS and plotter
                 subprocess.Popen(
