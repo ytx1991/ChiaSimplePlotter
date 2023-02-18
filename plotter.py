@@ -1,3 +1,5 @@
+import configparser
+import json
 import logging
 import os
 import subprocess
@@ -7,35 +9,35 @@ from logging.handlers import TimedRotatingFileHandler
 import psutil
 
 global logger
-
+config = configparser.ConfigParser()
+config.read(r'config.ini')
 # Scan period
-SCAN_SECOND = 10
+SCAN_SECOND = int(config.get("General", "SCAN_SECOND"))
 # Your Farmer Public Key
-FARMER_KEY = "b64bf1a9dd9378da07fe5c656a9f609838f14d13173805cb25940cce609866d367d0f51b08e5b3fcc7795acdd620a581"
+FARMER_KEY = config.get("Plotting", "FARMER_KEY")
 # Your Pool Contract
-POOL_CONTRACT = "xch1mw5mhk3jukd6ds0cttzptqqzkqjujaepwhn94h4yukdu33jrrlmqkvap63"
+POOL_CONTRACT = config.get("Plotting", "POOL_CONTRACT")
 # Path of your plotter binary
 # Valid Bladebit path needs to contain "bladebit"
-PLOTTER_PATH = "./bladebit_cuda"
+PLOTTER_PATH = config.get("Plotting", "PLOTTER_PATH")
 # Your SSD cache for plots, for Gigahorse, it has to end with /
-PLOT_CACHE_PATH = "/mnt/plot"
+PLOT_CACHE_PATH = config.get("Distributing", "PLOT_CACHE_PATH")
 # No new plotting when memory utilization is higher than this number
-REQUIRED_MEM_PERCENT = 50
+REQUIRED_MEM_PERCENT = int(config.get("Plotting", "REQUIRED_MEM_PERCENT"))
 # No new plotting when cache SSD free space is lower than this number
-REQUIRED_CACHE_GB = 105
+REQUIRED_CACHE_GB = int(config.get("Plotting", "REQUIRED_CACHE_GB"))
 # Compression level
-COMPRESSION_LEVEL = 0
+COMPRESSION_LEVEL = int(config.get("Plotting", "COMPRESSION_LEVEL"))
 # Concurrent copy how many plots
-MAX_COPY_THREAD = 5
-COOLDOWN_CYCLE = 3
+MAX_COPY_THREAD = int(config.get("Distributing", "MAX_COPY_THREAD"))
+# Prevent continuously spawn plotting
+COOLDOWN_CYCLE = int(config.get("General", "COOLDOWN_CYCLE"))
 # If you want to replace old plots when the disk is full
-REPLOT_MODE = False
+REPLOT_MODE = bool(config.get("General", "REPLOT_MODE"))
+REPLACE_DDL = int(config.get("Distributing", "REPLACE_DDL"))
+FARM_SPARE_GB = int(config.get("Distributing", "FARM_SPARE_GB"))
 # Destination of HDDs
-FARMS = ["/mnt/farm1", "/mnt/farm2", "/mnt/farm3", "/mnt/farm4", "/mnt/farm5", "/mnt/farm6", "/mnt/farm7", "/mnt/farm8", "/mnt/farm9",
-         "/mnt/farm10", "/mnt/farm11", "/mnt/farm12", "/mnt/farm13", "/mnt/farm14", "/mnt/farm15", "/mnt/farm16", "/mnt/farm17", "/mnt/farm18", "/mnt/farm19",
-         "/mnt/farm20", "/mnt/farm21", "/mnt/farm22", "/mnt/farm23", "/mnt/farm24", "/mnt/farm25", "/mnt/farm26", "/mnt/farm27", "/mnt/farm28", "/mnt/farm29",
-         "/mnt/farm30", "/mnt/farm31", "/mnt/farm32", "/mnt/farm33", "/mnt/farm34", "/mnt/farm35", "/mnt/farm36", "/mnt/farm37", "/mnt/farm38", "/mnt/farm39",
-         "/mnt/farm40", "/mnt/farm41", "/mnt/farm42"]
+FARMS = json.loads(config.get("Distributing", "FARMS"))
 
 BLADEBIT_COMMAND = f"{PLOTTER_PATH} -f {FARMER_KEY} -n 0 -t 20 -c {POOL_CONTRACT} --compress {COMPRESSION_LEVEL} cudaplot {PLOT_CACHE_PATH} "
 GIGAHORSE_COMMAND = f"{PLOTTER_PATH} -f {FARMER_KEY} -n -1 -c {POOL_CONTRACT} -C {COMPRESSION_LEVEL} -t {PLOT_CACHE_PATH} "
@@ -67,11 +69,13 @@ def main():
             last_plot_cycle += 1
             # Update in transfer plots
             update_in_transfer()
+            # Keep
             # Check if there is any plot need to move
             for file in os.listdir(PLOT_CACHE_PATH):
                 if file.endswith('.plot') and f"{PLOT_CACHE_PATH}/{file}" not in plot_in_transfer and len(plot_in_transfer) < MAX_COPY_THREAD:
                     # Check which farm has space
                     file_size = os.path.getsize(f"{PLOT_CACHE_PATH}/{file}")
+                    find_disk = False
                     for farm in FARMS:
                         farm_free = psutil.disk_usage(farm)[2]
                         if farm not in farm_in_transfer and farm_free > file_size and len(farm_in_transfer) < MAX_COPY_THREAD:
@@ -80,9 +84,18 @@ def main():
                             logger.info(f"Start moving plot {file} to {farm} ...")
                             # Modify this command if you want to copy remotely
                             subprocess.Popen([f"cp {PLOT_CACHE_PATH}/{file} {farm} && mv {PLOT_CACHE_PATH}/{file} {PLOT_CACHE_PATH}/{file}.delete && rm {PLOT_CACHE_PATH}/{file}.delete"], shell=True)
+                            find_disk = True
                             break
-                        else:
-                            continue
+                    # All farms are full, check if enabled replot
+                    if not find_disk and REPLOT_MODE:
+                        for farm in FARMS:
+                            for plot in os.listdir(farm):
+                                plot_size = os.path.getsize(f"{farm}/{file}")
+                                creation_date = os.path.getctime(f"{farm}/{file}")
+                            if farm not in farm_in_transfer and plot_size > file_size and len(
+                                farm_in_transfer) < MAX_COPY_THREAD:
+                    else:
+                        logger.warning("All disks are full, please shutdown plotting or enable replot mode.")
         except Exception as e:
             logger.exception("Error")
         finally:
@@ -132,5 +145,4 @@ if __name__ == "__main__":
     handler.setFormatter(formatter)
     logger.addHandler(handler)
     update_in_transfer()
-
     main()
