@@ -69,37 +69,66 @@ def main():
             last_plot_cycle += 1
             # Update in transfer plots
             update_in_transfer()
-            # Keep
+            # Keep farm spare space
+            if REPLOT_MODE:
+                spare_farms = 0
+                for farm in FARMS:
+                    farm_free = psutil.disk_usage(farm)[2]
+                    if farm_free > FARM_SPARE_GB * 1024 * 1024 * 1024:
+                        spare_farms += 1
+                if spare_farms >= MAX_COPY_THREAD:
+                    # We have enough spare space
+                    logger.info(f"Need {MAX_COPY_THREAD}, {spare_farms} farms available.")
+                else:
+                    clean_farm(MAX_COPY_THREAD - spare_farms)
             # Check if there is any plot need to move
-            for file in os.listdir(PLOT_CACHE_PATH):
-                if file.endswith('.plot') and f"{PLOT_CACHE_PATH}/{file}" not in plot_in_transfer and len(plot_in_transfer) < MAX_COPY_THREAD:
-                    # Check which farm has space
-                    file_size = os.path.getsize(f"{PLOT_CACHE_PATH}/{file}")
-                    find_disk = False
-                    for farm in FARMS:
-                        farm_free = psutil.disk_usage(farm)[2]
-                        if farm not in farm_in_transfer and farm_free > file_size and len(farm_in_transfer) < MAX_COPY_THREAD:
-                            plot_in_transfer.add(f"{PLOT_CACHE_PATH}/{file}")
-                            farm_in_transfer.add(farm)
-                            logger.info(f"Start moving plot {file} to {farm} ...")
-                            # Modify this command if you want to copy remotely
-                            subprocess.Popen([f"cp {PLOT_CACHE_PATH}/{file} {farm} && mv {PLOT_CACHE_PATH}/{file} {PLOT_CACHE_PATH}/{file}.delete && rm {PLOT_CACHE_PATH}/{file}.delete"], shell=True)
-                            find_disk = True
-                            break
-                    # All farms are full, check if enabled replot
-                    if not find_disk and REPLOT_MODE:
-                        for farm in FARMS:
-                            for plot in os.listdir(farm):
-                                plot_size = os.path.getsize(f"{farm}/{file}")
-                                creation_date = os.path.getctime(f"{farm}/{file}")
-                            if farm not in farm_in_transfer and plot_size > file_size and len(
-                                farm_in_transfer) < MAX_COPY_THREAD:
-                    else:
-                        logger.warning("All disks are full, please shutdown plotting or enable replot mode.")
+            move_plots()
         except Exception as e:
             logger.exception("Error")
         finally:
             time.sleep(SCAN_SECOND)
+
+
+def clean_farm(need_farms: int):
+    cleaned_farms = 0
+    for farm in FARMS:
+        # Need to remove old plots
+        remove_plots = []
+        remove_size = psutil.disk_usage(farm)[2]
+        for plot in os.listdir(farm):
+            creation_date = os.path.getctime(f"{farm}/{plot}")
+            if creation_date < REPLACE_DDL:
+                remove_plots.append(f"{farm}/{plot}")
+                plot_size = os.path.getsize(f"{farm}/{plot}")
+                remove_size += plot_size
+            if remove_size > FARM_SPARE_GB * 1024 * 1024 * 1024:
+                for rm_plot in remove_plots:
+                    subprocess.Popen([f"rm {rm_plot}"], shell=True)
+                cleaned_farms += 1
+                break
+        if cleaned_farms >= need_farms:
+            break
+    if cleaned_farms < need_farms:
+        logger.warning(f"Cannot clean up {need_farms} farms, all farms will full soon.")
+
+
+def move_plots():
+    for file in os.listdir(PLOT_CACHE_PATH):
+        if file.endswith('.plot') and f"{PLOT_CACHE_PATH}/{file}" not in plot_in_transfer and len(
+                plot_in_transfer) < MAX_COPY_THREAD:
+            # Check which farm has space
+            file_size = os.path.getsize(f"{PLOT_CACHE_PATH}/{file}")
+            for farm in FARMS:
+                farm_free = psutil.disk_usage(farm)[2]
+                if farm not in farm_in_transfer and farm_free > file_size and len(farm_in_transfer) < MAX_COPY_THREAD:
+                    plot_in_transfer.add(f"{PLOT_CACHE_PATH}/{file}")
+                    farm_in_transfer.add(farm)
+                    logger.info(f"Start moving plot {file} to {farm} ...")
+                    # Modify this command if you want to copy remotely
+                    subprocess.Popen([f"cp {PLOT_CACHE_PATH}/{file} {farm} && mv {PLOT_CACHE_PATH}/{file} {PLOT_CACHE_PATH}/{file}.delete && rm {PLOT_CACHE_PATH}/{file}.delete"],
+                                     shell=True)
+                    break
+            logger.warning(f"Cannot find farm for {file}, please check disk usage or enable replot mode.")
 
 
 def update_in_transfer():
