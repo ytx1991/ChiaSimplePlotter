@@ -47,6 +47,7 @@ plot_in_pending = set([])
 farm_in_transfer = set([])
 last_plot_time = 0
 spawn_plotter = True
+plot_in_deletion = set([])
 
 last_plot_cycle = COOLDOWN_CYCLE
 
@@ -103,7 +104,11 @@ def clean_farm(need_farms: int):
                 remove_size += plot_size
             if remove_size > FARM_SPARE_GB * 1024 * 1024 * 1024:
                 for rm_plot in remove_plots:
-                    subprocess.Popen([f"rm {rm_plot}"], shell=True)
+                    if rm_plot not in plot_in_deletion:
+                        subprocess.Popen([f"rm {rm_plot}"], shell=True)
+                        logger.info(f"Removing {rm_plot} for new plot ...")
+                        plot_in_deletion.add(rm_plot)
+
                 cleaned_farms += 1
                 break
         if cleaned_farms >= need_farms:
