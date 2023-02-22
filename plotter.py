@@ -20,7 +20,7 @@ POOL_CONTRACT = config.get("Plotting", "POOL_CONTRACT")
 # Path of your plotter binary
 # Valid Bladebit path needs to contain "bladebit"
 PLOTTER_PATH = config.get("Plotting", "PLOTTER_PATH")
-# Your SSD cache for plots, for Gigahorse, it has to end with /
+# Your SSD cache for plots
 PLOT_CACHE_PATH = config.get("Distributing", "PLOT_CACHE_PATH")
 # No new plotting when memory utilization is higher than this number
 REQUIRED_MEM_PERCENT = int(config.get("Plotting", "REQUIRED_MEM_PERCENT"))
@@ -40,7 +40,7 @@ FARM_SPARE_GB = int(config.get("Distributing", "FARM_SPARE_GB"))
 FARMS = json.loads(config.get("Distributing", "FARMS"))
 
 BLADEBIT_COMMAND = f"{PLOTTER_PATH} -f {FARMER_KEY} -n 0 -t 20 -c {POOL_CONTRACT} --compress {COMPRESSION_LEVEL} cudaplot {PLOT_CACHE_PATH} "
-GIGAHORSE_COMMAND = f"{PLOTTER_PATH} -f {FARMER_KEY} -n -1 -c {POOL_CONTRACT} -C {COMPRESSION_LEVEL} -t {PLOT_CACHE_PATH} "
+GIGAHORSE_COMMAND = f"{PLOTTER_PATH} -f {FARMER_KEY} -n -1 -c {POOL_CONTRACT} -C {COMPRESSION_LEVEL} -t {PLOT_CACHE_PATH}/ "
 
 plot_in_transfer = set([])
 plot_in_pending = set([])
