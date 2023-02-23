@@ -48,7 +48,7 @@ farm_in_transfer = set([])
 last_plot_time = 0
 spawn_plotter = True
 plot_in_deletion = set([])
-
+exist_plots = {}
 last_plot_cycle = COOLDOWN_CYCLE
 
 def main():
@@ -89,6 +89,9 @@ def main():
         finally:
             time.sleep(SCAN_SECOND)
 
+def load_plot_info(path):
+    if path not in exist_plots:
+        exist_plots[path] = {"cDate": os.path.getctime(path), "size": os.path.getsize(path)}
 
 def clean_farm(need_farms: int):
     cleaned_farms = 0
@@ -97,18 +100,17 @@ def clean_farm(need_farms: int):
         remove_plots = []
         remove_size = psutil.disk_usage(farm)[2]
         for plot in os.listdir(farm):
-            creation_date = os.path.getctime(f"{farm}/{plot}")
-            if creation_date < REPLACE_DDL:
-                remove_plots.append(f"{farm}/{plot}")
-                plot_size = os.path.getsize(f"{farm}/{plot}")
-                remove_size += plot_size
+            path = f"{farm}/{plot}"
+            load_plot_info(path)
+            if exist_plots[path]["cDate"] < REPLACE_DDL:
+                remove_plots.append(path)
+                remove_size += exist_plots[path]["size"]
             if remove_size > FARM_SPARE_GB * 1024 * 1024 * 1024:
                 for rm_plot in remove_plots:
                     if rm_plot not in plot_in_deletion:
                         subprocess.Popen([f"rm {rm_plot}"], shell=True)
                         logger.info(f"Removing {rm_plot} for new plot ...")
                         plot_in_deletion.add(rm_plot)
-
                 cleaned_farms += 1
                 break
         if cleaned_farms >= need_farms:
