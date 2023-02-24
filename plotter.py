@@ -81,7 +81,7 @@ def main():
                     # We have enough spare space
                     logger.info(f"Need {MAX_COPY_THREAD}, {spare_farms} farms available.")
                 else:
-                    clean_farm(MAX_COPY_THREAD - spare_farms)
+                    clean_farm(MAX_COPY_THREAD)
             # Check if there is any plot need to move
             move_plots()
         except Exception as e:
@@ -100,19 +100,20 @@ def clean_farm(need_farms: int):
         remove_plots = []
         remove_size = psutil.disk_usage(farm)[2]
         for plot in os.listdir(farm):
-            path = f"{farm}/{plot}"
-            load_plot_info(path)
-            if exist_plots[path]["cDate"] < REPLACE_DDL:
-                remove_plots.append(path)
-                remove_size += exist_plots[path]["size"]
-            if remove_size > FARM_SPARE_GB * 1024 * 1024 * 1024:
-                for rm_plot in remove_plots:
-                    if rm_plot not in plot_in_deletion:
-                        subprocess.Popen([f"rm {rm_plot}"], shell=True)
-                        logger.info(f"Removing {rm_plot} for new plot ...")
-                        plot_in_deletion.add(rm_plot)
-                cleaned_farms += 1
-                break
+            if plot.endswith('.plot'):
+                path = f"{farm}/{plot}"
+                load_plot_info(path)
+                if exist_plots[path]["cDate"] < REPLACE_DDL:
+                    remove_plots.append(path)
+                    remove_size += exist_plots[path]["size"]
+                if remove_size > FARM_SPARE_GB * 1024 * 1024 * 1024:
+                    for rm_plot in remove_plots:
+                        if rm_plot not in plot_in_deletion:
+                            logger.info(f"Removing {rm_plot} for new plot ...")
+                            subprocess.Popen([f"rm {rm_plot}"], shell=True)
+                            plot_in_deletion.add(rm_plot)
+                    cleaned_farms += 1
+                    break
         if cleaned_farms >= need_farms:
             break
     if cleaned_farms < need_farms:
