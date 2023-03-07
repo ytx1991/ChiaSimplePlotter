@@ -110,7 +110,7 @@ def clean_farm(need_farms: int):
                     for rm_plot in remove_plots:
                         if rm_plot not in plot_in_deletion:
                             logger.info(f"Removing {rm_plot} for new plot ...")
-                            subprocess.Popen([f"rm {rm_plot}"], shell=True)
+                            subprocess.Popen([f"mv {rm_plot} {rm_plot}.delete && rm {rm_plot}.delete"], shell=True)
                             plot_in_deletion.add(rm_plot)
                     cleaned_farms += 1
                     break
