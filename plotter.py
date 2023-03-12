@@ -33,7 +33,7 @@ MAX_COPY_THREAD = int(config.get("Distributing", "MAX_COPY_THREAD"))
 # Prevent continuously spawn plotting
 COOLDOWN_CYCLE = int(config.get("General", "COOLDOWN_CYCLE"))
 # If you want to replace old plots when the disk is full
-REPLOT_MODE = bool(config.get("General", "REPLOT_MODE"))
+REPLOT_MODE = config.get("General", "REPLOT_MODE")
 REPLACE_DDL = int(config.get("Distributing", "REPLACE_DDL"))
 FARM_SPARE_GB = int(config.get("Distributing", "FARM_SPARE_GB"))
 # Destination of HDDs
@@ -71,7 +71,7 @@ def main():
             # Update in transfer plots
             update_in_transfer()
             # Keep farm spare space
-            if REPLOT_MODE:
+            if REPLOT_MODE.lower() == 'true':
                 spare_farms = 0
                 for farm in FARMS:
                     farm_free = psutil.disk_usage(farm)[2]
